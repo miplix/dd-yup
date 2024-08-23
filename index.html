@@ -1,0 +1,325 @@
+
+<html><head><base href="https://websimcreationengine.example.com/nftviewer/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFT Staking Power Leaderboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #4ecca3;
+      --bg-color: #1a1a2e;
+      --text-color: #e0e0e0;
+      --secondary-bg: #16213e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      line-height: 1.4;
+      color: var(--text-color);
+      margin: 0;
+      padding: 10px;
+      background: linear-gradient(135deg, var(--bg-color) 0%, var(--secondary-bg) 100%);
+      font-size: 14px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .logo {
+      width: 50px;
+      height: 50px;
+      margin-right: 10px;
+    }
+    h1, h2 {
+      color: var(--primary-color);
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      text-align: center;
+      font-size: 1.5em;
+      margin: 10px 0;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow-x: hidden;
+    }
+    .search-container, .allocation-container {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    input, button {
+      padding: 8px;
+      border: 1px solid var(--primary-color);
+      border-radius: 4px;
+      background-color: rgba(22, 33, 62, 0.8);
+      color: var(--text-color);
+      width: 100%;
+      font-size: 14px;
+    }
+    button {
+      background-color: var(--primary-color);
+      color: var(--bg-color);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background-color: #45b393;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 12px;
+    }
+    th, td {
+      padding: 6px 4px;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    th {
+      background-color: var(--primary-color);
+      color: var(--bg-color);
+      font-weight: bold;
+    }
+    tr:nth-child(even) {
+      background-color: rgba(78, 204, 163, 0.1);
+    }
+    .top10-list {
+      list-style-type: none;
+      padding: 0;
+      margin-bottom: 20px;
+    }
+    .top10-item {
+      padding: 6px;
+      margin-bottom: 3px;
+      border-radius: 4px;
+      background-color: rgba(78, 204, 163, 0.1);
+      position: relative;
+      overflow: hidden;
+      font-size: 12px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .top10-item::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background-color: rgba(78, 204, 163, 0.3);
+      transition: width 0.5s ease-in-out;
+      z-index: -1;
+    }
+    .trophy {
+      font-size: 1em;
+      margin-right: 3px;
+    }
+    #loadingOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(26, 26, 46, 0.8);
+      z-index: 1000;
+    }
+    .loader {
+      border: 4px solid var(--primary-color);
+      border-top: 4px solid var(--bg-color);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-top: -20px;
+      margin-left: -20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @media (min-width: 768px) {
+      body { font-size: 16px; }
+      .container { flex-direction: row; flex-wrap: wrap; }
+      .search-container, .allocation-container { flex-direction: row; }
+      input, button { width: auto; }
+      table { font-size: 14px; }
+      .top10-list { columns: 2; }
+      .top10-item { font-size: 14px; }
+    }
+  </style>
+  </head>
+  <body>
+    <div class="header">
+      <a href="https://ibb.co/LRvMM7q"><img src="https://i.ibb.co/LRvMM7q/1000006545.png" alt="1000006545" border="0" /></a>
+      <h1>Лидерборд стейкинга и наград для держателей NFT YupLand</h1>
+    </div>
+    
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Поиск по кошельку...">
+      <div class="allocation-container">
+        <label for="allocationInput">Аллокация Darai(млн):</label>
+        <input type="number" id="allocationInput" value="100">
+      </div>
+      <button id="refreshButton">Обновить</button>
+    </div>
+    
+    <div class="container">
+      <div class="sidebar">
+        <h2>Топ 10</h2>
+        <ul id="top10List" class="top10-list"></ul>
+      </div>
+      
+      <div class="main-content">
+        <h2>Лидерборд</h2>
+        <table id="leaderboardTable">
+          <thead>
+            <tr>
+              <th>Место</th>
+              <th>Кошелек</th>
+              <th>Мощность</th>
+              <th>DarAI</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+  
+    <div id="loadingOverlay">
+      <div class="loader"></div>
+    </div>
+  
+    <script>
+      const url = 'https://graph.mintbase.xyz/mainnet';
+      const query = `
+        query {
+          mb_views_nft_tokens(
+            where: {nft_contract_id: {_eq: "darai.mintbase1.near"}}
+          ) {
+            owner
+            title
+          }
+        }
+      `;
+  
+      const stakingPowerMapping = {
+        '0': 100, '1': 50, '2': 25, '3': 12.5, '4': 6.25,
+        'legendary': 3.125, 'epic': 1.5625, 'rare': 0.78125,
+        'uncommon': 0.390625, 'common': 0.1953125
+      };
+  
+      function parseStakingPower(title) {
+        const key = Object.keys(stakingPowerMapping).find(k => title.toLowerCase().includes(k));
+        return key ? stakingPowerMapping[key] : 0;
+      }
+  
+      function shouldIncludeNFT(title, owner) {
+        const excludeWords = ['passport', 'egg', 'yupik - chiter', 'тест', 'boost'];
+        return !excludeWords.some(word => title.toLowerCase().includes(word)) && owner !== 'darai_nft.near';
+      }
+  
+      async function fetchNFTData() {
+        try {
+          const response = await axios.post(url, { query }, { headers: { 'mb-api-key': 'anon' } });
+          return response.data.data.mb_views_nft_tokens;
+        } catch (error) {
+          console.error('Ошибка запроса:', error.response ? `${error.response.status} - ${error.response.statusText}` : error.message);
+          return null;
+        }
+      }
+  
+      function showLoading() { document.getElementById('loadingOverlay').style.display = 'block'; }
+      function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
+  
+      function calculateReward(stakingPower, totalPower, allocation) {
+        return (stakingPower / totalPower) * allocation;
+      }
+  
+      async function updateLeaderboard() {
+        showLoading();
+        const nftData = await fetchNFTData();
+        if (nftData) {
+          const ownerStakingPower = {};
+          let totalPower = 0;
+  
+          nftData.forEach(nft => {
+            if (nft.owner !== '0000000000000000000000000000000000000000000000000000000000000000' && shouldIncludeNFT(nft.title, nft.owner)) {
+              const power = parseStakingPower(nft.title);
+              ownerStakingPower[nft.owner] = (ownerStakingPower[nft.owner] || 0) + power;
+              totalPower += power;
+            }
+          });
+  
+          // Добавляем 25% мощности для адреса se_la_via.tg
+          if (ownerStakingPower['se_la_via.tg']) {
+            ownerStakingPower['se_la_via.tg'] += 25;
+            totalPower += 25;
+          } else {
+            ownerStakingPower['se_la_via.tg'] = 25;
+            totalPower += 25;
+          }
+  
+          const allocation = parseFloat(document.getElementById('allocationInput').value) * 1000000;
+          const sortedOwners = Object.entries(ownerStakingPower).sort((a, b) => b[1] - a[1]);
+  
+          updateTable(sortedOwners, totalPower, allocation);
+          updateTop10(sortedOwners, totalPower, allocation);
+        }
+        hideLoading();
+      }
+  
+      function updateTable(sortedOwners, totalPower, allocation) {
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        leaderboardBody.innerHTML = '';
+        sortedOwners.forEach(([owner, power], index) => {
+          const reward = calculateReward(power, totalPower, allocation);
+          const row = leaderboardBody.insertRow();
+          row.insertCell(0).innerHTML = index < 3 ? ['🏆','🥈','🥉'][index] : (index + 1);
+          row.insertCell(1).textContent = owner;
+          row.insertCell(2).textContent = power.toFixed(2) + '%';
+          row.insertCell(3).textContent = reward.toFixed(0);
+        });
+      }
+  
+      function updateTop10(sortedOwners, totalPower, allocation) {
+        const top10List = document.getElementById('top10List');
+        top10List.innerHTML = '';
+        const maxPower = sortedOwners[0][1];
+        sortedOwners.slice(0, 10).forEach(([owner, power], index) => {
+          const reward = calculateReward(power, totalPower, allocation);
+          const listItem = document.createElement('li');
+          listItem.className = 'top10-item';
+          const trophy = index < 3 ? ['🏆','🥈','🥉'][index] : '';
+          listItem.innerHTML = `<span class="trophy">${trophy}</span>${index + 1}. ${owner.substring(0, 10)}... ${power.toFixed(2)}% (${reward.toFixed(0)})`;
+          const fillWidth = (power / maxPower) * 100;
+          listItem.style.background = `linear-gradient(to right, rgba(78, 204, 163, 0.3) ${fillWidth}%, transparent ${fillWidth}%)`;
+          top10List.appendChild(listItem);
+        });
+      }
+  
+      document.getElementById('searchInput').addEventListener('input', e => {
+        const searchText = e.target.value.toLowerCase();
+        Array.from(document.getElementById('leaderboardBody').rows).forEach(row => {
+          const wallet = row.cells[1].textContent.toLowerCase();
+          row.style.display = wallet.includes(searchText) ? '' : 'none';
+        });
+      });
+  
+      document.getElementById('refreshButton').addEventListener('click', updateLeaderboard);
+      document.getElementById('allocationInput').addEventListener('change', updateLeaderboard);
+  
+      updateLeaderboard();
+    </script>
+  </body>
+  </html>
